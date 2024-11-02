@@ -1,3 +1,20 @@
+# ICP Job Portal Canister
+
+This project is an ICP Job Portal Canister built on Azle TypeScript. It provides a platform for managing job postings and job applications, allowing employers to post jobs and candidates to apply for them.
+
+### Job Posting Management
+- Create new job postings
+- List all jobs with filtering options (category, employment type, status)
+- Get job details
+- Update job postings
+- Delete job postings
+
+### Job Application Management
+- Submit applications for jobs
+- View applications for a specific job
+- Get application details
+- Update application status
+
 ## Getting started
 
 To get started developing in the browser, click this button:
@@ -77,38 +94,38 @@ brew install podman
 ```
 {
   "canisters": {
-    "message_board": {
+    "job_portal": {
       "type": "custom",
       "main": "src/index.ts",
       "candid": "src/index.did",
       "candid_gen": "http",
-      "build": "npx azle message_board",
-      "wasm": ".azle/message_board/message_board.wasm",
+      "build": "npx azle job_portal",
+      "wasm": ".azle/job_portal/job_portal.wasm",
       "gzip": true,
       "metadata": [
         {
-            "name": "candid:service",
-            "path": "src/index.did"
+          "name": "candid:service",
+          "path": "src/index.did"
         },
         {
-            "name": "cdk:name",
-            "content": "azle"
+          "name": "cdk:name",
+          "content": "azle"
         }
-    ]
+      ]
     }
   }
 }
 ```
 
-where `message_board` is the name of the canister.
+where `job_portal` is the name of the canister.
 
 6. Create a `package.json` with the next content and run `npm i`:
 
 ```
 {
-  "name": "message_board",
+  "name": "job_portal",
   "version": "0.1.0",
-  "description": "Internet Computer message board application",
+  "description": "Job Portal Canister",
   "dependencies": {
     "@dfinity/agent": "^0.21.4",
     "@dfinity/candid": "^0.21.4",
@@ -123,12 +140,11 @@ where `message_board` is the name of the canister.
     "@types/express": "^4.17.21"
   }
 }
-
 ```
 
 7. Run a local replica
 
-- `dfx start --host 127.0.0.1:8000`
+- `dfx start --host 127.0.0.1:8000` or `dfx start --clean --background`
 
 #### IMPORTANT NOTE
 
@@ -150,7 +166,7 @@ AZLE_AUTORELOAD=true dfx deploy
 
 - `dfx stop`
 
-## Interaction with the canister
+## Interacting with Job Portal Canister
 
 When a canister is deployed, `dfx deploy` produces a link to the Candid interface in the shell output.
 
@@ -162,7 +178,7 @@ On the other hand, you can interact with the canister using `dfx` via CLI:
 
 - `dfx canister id <CANISTER_NAME>`
   Example:
-- `dfx canister id message_board`
+- `dfx canister id job_portal`
   Response:
 
 ```
@@ -177,93 +193,90 @@ http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000
 
 With this URL, you can interact with the canister using an HTTP client of your choice. We are going to use `curl`.
 
-### create a message:
+## Job Portal Canister Documentation
 
-- `curl -X POST <CANISTER_URL>/<REQUEST_PATH> -H "Content-type: application/json" -d <PAYLOAD>`
-  Example:
-- `curl -X POST http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/messages -H "Content-type: application/json" -d '{"title": "todo list", "body": "some important things", "attachmentURL": "url/path/to/some/photo/attachment"}'`
-  Response:
+Here are some guidance on interacting with the canister.
 
+### Create New Job Post:
+Example:
+- `curl -X POST http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/jobs \
+     -H "Content-Type: application/json" \
+     -d '{
+           "title": "Software Developer",
+           "company": "ICP",
+           "location": "Jakarta",
+           "description": "Develop web3",
+           "requirements": ["Graduated", "IT"],
+           "salary": {
+               "min": 1000,
+               "max": 5000,
+               "currency": "USD"
+           },
+           "employmentType": "FULL_TIME",
+           "category": "A",
+           "contactEmail": "icp@icp.com"
+         }'`
+  
+Response:
 ```
-{
-    "id": "d8326ec8-fe70-402e-8914-ca83f0f1055b",
-    "createdAt": "2024-02-09T11:24:32.441Z",
-    "title": "todo list",
-    "body": "some important things",
-    "attachmentURL": "url/path/to/some/photo/attachment"
-}
-```
-
-### update a message:
-
-- `curl -X PUT <CANISTER_URL>/<REQUEST_PATH>/<MESSAGE_ID> -H "Content-type: application/json" -d <PAYLOAD>`
-  Example (In this case we include a message id in the payload to identify the message we want to update):
-- `curl -X PUT  http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/messages/d8326ec8-fe70-402e-8914-ca83f0f1055b -H "Content-type: application/json" -d '{"title": "UPDATED TITLE", "body": "some important things", "attachmentURL": "url/path/to/some/photo/attachment"}'`
-  Response:
-
-```
-{
-    "id": "d8326ec8-fe70-402e-8914-ca83f0f1055b",
-    "createdAt": "2024-02-09T11:24:32.441Z",
-    "title": "UPDATED TITLE",
-    "body": "some important things",
-    "attachmentURL": "url/path/to/some/photo/attachment",
-    "updatedAt": "2024-02-09T11:26:59.002Z"
-}
+{"id":"cdb5a753-0de7-483f-9ea4-23722eb3042f","createdAt":"2024-11-02T09:07:04.639Z","updatedAt":null,"applicants":[],"status":"ACTIVE","title":"Software Developer","company":"ICP","location":"Jakarta","description":"Develop web3","requirements":["Graduated","IT"],"salary":{"min":1000,"max":5000,"currency":"USD"},"employmentType":"FULL_TIME","category":"A","contactEmail":"icp@icp.com"}
 ```
 
-### get all messages:
+### Update Job Post:
+Example:
+- `curl -X PUT http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/jobs/<JOB_ID> \
+     -H "Content-Type: application/json" \
+     -d '{
+           "title": "Software Engineer",
+           "company": "ICP",
+           "location": "Jakarta",
+           "description": "Develop web3",
+           "requirements": ["Graduated", "IT"],
+           "salary": {
+               "min": 1000,
+               "max": 5000,
+               "currency": "USD"
+           },
+           "employmentType": "FULL_TIME",
+           "category": "A",
+           "contactEmail": "icp@icp.com"
+         }'`
+  
+Response:
+```
+{"id":"cdb5a753-0de7-483f-9ea4-23722eb3042f","createdAt":"2024-11-02T09:07:04.639Z","updatedAt":"2024-11-02T09:10:10.634Z","applicants":[],"status":"ACTIVE","title":"Software Engineer","company":"ICP","location":"Jakarta","description":"Develop web3","requirements":["Graduated","IT"],"salary":{"min":1000,"max":5000,"currency":"USD"},"employmentType":"FULL_TIME","category":"A","contactEmail":"icp@icp.com"}
+```
 
-- `curl <CANISTER_URL>/<REQUEST_PATH>`
-  Example:
-- `curl http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/messages`
-  Response:
+### Get All Job:
+Example:
+- `curl http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/jobs`
+- 
+  With Additional Queries
+- `curl http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:4943/jobs?status=ACTIVE?category=Engineer?employmentType=FULL_TIME`
 
+Response:
 ```
 [
-    {
-        "id": "d8326ec8-fe70-402e-8914-ca83f0f1055b",
-        "createdAt": "2024-02-09T11:24:32.441Z",
-        "title": "UPDATED TITLE",
-        "body": "some important things",
-        "attachmentURL": "url/path/to/some/photo/attachment",
-        "updatedAt": "2024-02-09T11:26:59.002Z"
-    }
+{"id":"cdb5a753-0de7-483f-9ea4-23722eb3042f","createdAt":"2024-11-02T09:07:04.639Z","updatedAt":"2024-11-02T09:10:10.634Z","applicants":[],"status":"ACTIVE","title":"Software Engineer","company":"ICP","location":"Jakarta","description":"Develop web3","requirements":["Graduated","IT"],"salary":{"min":1000,"max":5000,"currency":"USD"},"employmentType":"FULL_TIME","category":"A","contactEmail":"icp@icp.com"}
 ]
 ```
 
-### get a message:
-
-- `curl <CANISTER_URL>/<REQUEST_PATH>/<MESSAGE_ID>`
-  Example (here we only provide a message id):
-- `curl http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/messages/d8326ec8-fe70-402e-8914-ca83f0f1055b`
-  Response:
-
+### Get Job by Id:
+Example:
+- `curl http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/jobs/<JOB_ID>`
+  
+Response:
 ```
-{
-    "id": "d8326ec8-fe70-402e-8914-ca83f0f1055b",
-    "createdAt": "2024-02-09T11:24:32.441Z",
-    "title": "UPDATED TITLE",
-    "body": "some important things",
-    "attachmentURL": "url/path/to/some/photo/attachment",
-    "updatedAt": "2024-02-09T11:26:59.002Z"
-}
+{"id":"cdb5a753-0de7-483f-9ea4-23722eb3042f","createdAt":"2024-11-02T09:07:04.639Z","updatedAt":"2024-11-02T09:10:10.634Z","applicants":[],"status":"ACTIVE","title":"Software Engineer","company":"ICP","location":"Jakarta","description":"Develop web3","requirements":["Graduated","IT"],"salary":{"min":1000,"max":5000,"currency":"USD"},"employmentType":"FULL_TIME","category":"A","contactEmail":"icp@icp.com"}
 ```
 
-### delete a message:
-
-- `curl -X DELETE <CANISTER_URL>/<REQUEST_PATH>/<MESSAGE_ID>`
-  Example (here we only provide a message id):
-- `curl -X DELETE http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/messages/d8326ec8-fe70-402e-8914-ca83f0f1055b`
-  Response (returns the deleted message):
-
+### Delete Job Post:
+Example:
+- `curl -X DELETE http://bkyz2-fmaaa-aaaaa-qaaaq-cai.localhost:8000/jobs/<JOB_ID>`
+Response:
 ```
-{
-    "id": "d8326ec8-fe70-402e-8914-ca83f0f1055b",
-    "createdAt": "2024-02-09T11:24:32.441Z",
-    "title": "UPDATED TITLE",
-    "body": "some important things",
-    "attachmentURL": "url/path/to/some/photo/attachment",
-    "updatedAt": "2024-02-09T11:26:59.002Z"
-}
+{"id":"cdb5a753-0de7-483f-9ea4-23722eb3042f","createdAt":"2024-11-02T09:07:04.639Z","updatedAt":"2024-11-02T09:10:10.634Z","applicants":["0c9be2e2-75f8-4dc3-8978-0c3980ffa012"],"status":"ACTIVE","title":"Software Engineer","company":"ICP","location":"Jakarta","description":"Develop web3","requirements":["Graduated","IT"],"salary":{"min":1000,"max":5000,"currency":"USD"},"employmentType":"FULL_TIME","category":"A","contactEmail":"icp@icp.com"}
 ```
+
+### Additional Methods
+The remaining methods, follow the same structure: provide the endpoint, description, example request, and expected response. This structured documentation will make it easier for developers to understand how to interact with the Job Portal Canister effectively.
