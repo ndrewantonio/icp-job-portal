@@ -45,35 +45,61 @@ export default Server(() => {
 
   // Post new Job Post
   app.post("/jobs", (req, res) => {
-    const jobPost: JobPost = {
-      id: uuidv4(),
-      createdAt: getCurrentDate(),
-      updatedAt: null,
-      applicants: [],
-      status: "ACTIVE",
-      ...req.body,
-    };
-    jobsStorage.insert(jobPost.id, jobPost);
-    res.json(jobPost);
-  });
+  const { title, company, location, description, requirements, salary, employmentType, category, contactEmail } = req.body;
 
+  // Input validation
+  if (!title || !company || !location || !description || !Array.isArray(requirements) || !contactEmail) {
+    return res.status(400).send("All required fields must be provided.");
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    return res.status(400).send("Invalid email format.");
+  }
+
+  if (salary.min < 0 || salary.max < salary.min || !["USD", "EUR"].includes(salary.currency)) {
+    return res.status(400).send("Invalid salary information.");
+  }
+
+  const jobPost: JobPost = {
+    id: uuidv4(),
+    title,
+    company,
+    location,
+    description,
+    requirements,
+    salary,
+    employmentType,
+    category,
+    contactEmail,
+    createdAt: getCurrentDate(),
+    updatedAt: null,
+    status: "ACTIVE",
+    applicants: [],
+  };
+
+  jobsStorage.insert(jobPost.id, jobPost);
+  res.json(jobPost);
+});
   // Get All Job Post
   app.get("/jobs", (req, res) => {
-    const { category, employmentType, status } = req.query;
-    let jobs = jobsStorage.values();
+  const category = req.query.category?.toString().trim().toLowerCase();
+  const employmentType = req.query.employmentType?.toString().trim().toUpperCase();
+  const status = req.query.status?.toString().trim().toUpperCase();
 
-    if (category) {
-      jobs = jobs.filter((job) => job.category === category);
-    }
-    if (employmentType) {
-      jobs = jobs.filter((job) => job.employmentType === employmentType);
-    }
-    if (status) {
-      jobs = jobs.filter((job) => job.status === status);
-    }
+  let jobs = jobsStorage.values();
 
-    res.json(jobs);
-  });
+  if (category) {
+    jobs = jobs.filter((job) => job.category.toLowerCase() === category);
+  }
+  if (employmentType) {
+    jobs = jobs.filter((job) => job.employmentType === employmentType);
+  }
+  if (status) {
+    jobs = jobs.filter((job) => job.status === status);
+  }
+
+  res.json(jobs);
+});
 
   // Get Job Post by Id
   app.get("/jobs/:id", (req, res) => {
@@ -88,21 +114,36 @@ export default Server(() => {
 
   // Update Job Post by Id
   app.put("/jobs/:id", (req, res) => {
-    const jobId = req.params.id;
-    const jobOpt = jobsStorage.get(jobId);
-    if ("None" in jobOpt) {
-      res.status(404).send(`Job with id=${jobId} not found`);
-    } else {
-      const job = jobOpt.Some;
-      const updatedJob = {
-        ...job,
-        ...req.body,
-        updatedAt: getCurrentDate(),
-      };
-      jobsStorage.insert(job.id, updatedJob);
-      res.json(updatedJob);
-    }
-  });
+  const jobId = req.params.id;
+  const jobOpt = jobsStorage.get(jobId);
+
+  if ("None" in jobOpt) {
+    return res.status(404).send(`Job with id=${jobId} not found`);
+  }
+
+  const job = jobOpt.Some;
+
+  // Only allowed fields to be updated
+  const { title, description, requirements, salary, status } = req.body;
+
+  // Validate allowed fields
+  if (title && typeof title !== 'string') return res.status(400).send("Invalid title format.");
+  if (description && typeof description !== 'string') return res.status(400).send("Invalid description format.");
+  if (status && !["ACTIVE", "CLOSED", "DRAFT"].includes(status)) return res.status(400).send("Invalid status value.");
+
+  const updatedJob = {
+    ...job,
+    title: title || job.title,
+    description: description || job.description,
+    requirements: requirements || job.requirements,
+    salary: salary || job.salary,
+    status: status || job.status,
+    updatedAt: getCurrentDate(),
+  };
+
+  jobsStorage.insert(job.id, updatedJob);
+  res.json(updatedJob);
+});
 
   // Delete Job Post by Id
   app.delete("/jobs/:id", (req, res) => {
@@ -117,30 +158,59 @@ export default Server(() => {
 
   // Apply Job
   app.post("/jobs/:jobId/apply", (req, res) => {
-    const jobId = req.params.jobId;
-    const jobOpt = jobsStorage.get(jobId);
+  const jobId = req.params.jobId;
+  const jobOpt = jobsStorage.get(jobId);
 
-    if ("None" in jobOpt) {
-      res.status(404).send(`Job with id=${jobId} not found`);
-      return;
-    }
+  if ("None" in jobOpt) {
+    return res.status(404).send(`Job with id=${jobId} not found`);
+  }
 
-    const job = jobOpt.Some;
-    if (job.status !== "ACTIVE") {
-      res
-        .status(400)
-        .send("This job posting is no longer accepting applications");
-      return;
-    }
+  const job = jobOpt.Some;
 
-    const application: JobApplication = {
-      id: uuidv4(),
-      jobId,
-      status: "PENDING",
-      createdAt: getCurrentDate(),
-      updatedAt: null,
-      ...req.body,
-    };
+  if (job.status !== "ACTIVE") {
+    return res.status(400).send("This job posting is no longer accepting applications.");
+  }
+
+  const { applicantName, email, phone, resumeUrl, coverLetter } = req.body;
+
+  // Input validation
+  if (!applicantName || !email || !resumeUrl) {
+    return res.status(400).send("Applicant name, email, and resume URL are required.");
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).send("Invalid email format.");
+  }
+
+  // Prevent duplicate applications
+  const existingApplications = applicationsStorage.values().filter(
+    (app) => app.jobId === jobId && app.email === email
+  );
+  if (existingApplications.length > 0) {
+    return res.status(400).send("You have already applied for this job.");
+  }
+
+  const application: JobApplication = {
+    id: uuidv4(),
+    jobId,
+    applicantName,
+    email,
+    phone,
+    resumeUrl,
+    coverLetter,
+    status: "PENDING",
+    createdAt: getCurrentDate(),
+    updatedAt: null,
+  };
+
+  applicationsStorage.insert(application.id, application);
+
+  // Update job with new applicant
+  job.applicants.push(application.id);
+  jobsStorage.insert(jobId, job);
+
+  res.json(application);
+});
 
     // Update job with new applicant
     const updatedJob = {
